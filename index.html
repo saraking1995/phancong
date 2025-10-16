@@ -33,26 +33,22 @@ const FIXED_NAMES=['Nghĩa','Thủy','Đạt','Trường','Thống','Kỳ Anh','
 const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0IZj2a2ph9fws3g_zj01hEQhQwbHkJjzJ0Bq2ZiC0q/exec";
 
 let currentSoVu="", currentRaw="";
-function fetchData(){
-  const soVu=document.getElementById("soVu").value.trim();
-  if(!soVu)return alert("Nhập số vụ!");
-  fetch(URL,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({action:"getPhanCongBySoVu",soVu})
-  }).then(r=>r.json()).then(res=>{
-    if(!res.found)return alert(res.message||"Không thấy");
-    currentSoVu=soVu; currentRaw=res.raw;
-    document.getElementById("dText").textContent=currentRaw;
-    renderCheckboxes(FIXED_NAMES.filter(n=>currentRaw.includes(n)));
-    // lấy danh sách tên đã tô
-    fetch(URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"getColored",soVu})})
-      .then(r=>r.json()).then(names=>{
-        names.forEach(n=>{const cb=document.querySelector(`input[value='${n}']`);if(cb)cb.checked=true;});
-        highlight(names);
-      });
-  });
+function fetchData() {
+  const soVu = document.getElementById("soVu").value.trim();
+  if (!soVu) return alert("Nhập số vụ!");
+
+  fetch(URL + "?action=getPhanCongBySoVu&soVu=" + encodeURIComponent(soVu))
+    .then(r => r.json())
+    .then(res => {
+      if (!res.found) {
+        alert("Không tìm thấy số vụ " + soVu);
+        return;
+      }
+      document.getElementById("dText").textContent = res.raw;
+    })
+    .catch(err => alert("Lỗi: " + err));
 }
+
 function renderCheckboxes(names){
   const zone=document.getElementById("checkZone");zone.innerHTML="";
   names.forEach(n=>{
