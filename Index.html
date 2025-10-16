@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tra cứu & Bôi đỏ</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;background:#f8fafc;margin:0;padding:0}
+.container{max-width:850px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+h1{text-align:center}
+.hl{color:#dc2626;font-weight:700}
+button{border:none;border-radius:8px;padding:10px 16px;margin:5px;cursor:pointer}
+.btn{background:#2563eb;color:#fff}
+.btn.secondary{background:#6b7280;color:#fff}
+.result{margin-top:12px;padding:12px;border:1px dashed #ccc;border-radius:12px;min-height:60px;white-space:pre-wrap}
+.options{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.opt{border:1px solid #ccc;border-radius:999px;padding:6px 10px}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Tra cứu & Bôi đỏ phân công</h1>
+  <input id="soVu" type="text" placeholder="Nhập số vụ...">
+  <button class="btn" onclick="fetchData()">Tra cứu</button>
+  <div id="dText" class="result"></div>
+  <div id="checkZone" class="options"></div>
+  <button class="btn" onclick="apply()">Đồng ý (Bôi đỏ)</button>
+  <button class="btn secondary" onclick="reset()">Bỏ bôi đỏ</button>
+</div>
+
+<script>
+const FIXED_NAMES=['Nghĩa','Thủy','Đạt','Trường','Thống','Kỳ Anh','Thao','Tiến','Huy','Nam','PNam','Tình','Quân','Lượng','Phúc','Khang','Dũng','Nhật','Sáng','Khoa','Bình','Tuấn','Hải','Tuân','Trung','Duy'];
+const URL="https://script.google.com/macros/s/AKfycbzJyJXoS21jGTI0hyLmOVr7GNfskFp--QwJhddkl2oAipRC-go44t2JyRx0Ea664ngU/exec"; // 🟢 Link Apps Script của bạn
+
+let currentSoVu="", currentRaw="";
+function fetchData(){
+  const soVu=document.getElementById("soVu").value.trim();
+  if(!soVu)return alert("Nhập số vụ!");
+  fetch(URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"getPhanCongBySoVu",soVu})
+  }).then(r=>r.json()).then(res=>{
+    if(!res.found)return alert(res.message||"Không thấy");
+    currentSoVu=soVu; currentRaw=res.raw;
+    document.getElementById("dText").textContent=currentRaw;
+    renderCheckboxes(FIXED_NAMES.filter(n=>currentRaw.includes(n)));
+    // lấy danh sách tên đã tô
+    fetch(URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"getColored",soVu})})
+      .then(r=>r.json()).then(names=>{
+        names.forEach(n=>{const cb=document.querySelector(`input[value='${n}']`);if(cb)cb.checked=true;});
+        highlight(names);
+      });
+  });
+}
+function renderCheckboxes(names){
+  const zone=document.getElementById("checkZone");zone.innerHTML="";
+  names.forEach(n=>{
+    const label=document.createElement("label");label.className="opt";
+    const cb=document.createElement("input");cb.type="checkbox";cb.value=n;
+    cb.onchange=()=>highlight(getSelected());
+    label.appendChild(cb);label.append(" "+n);zone.appendChild(label);
+  });
+}
+function getSelected(){return [...document.querySelectorAll("#checkZone input:checked")].map(c=>c.value);}
+function highlight(names){
+  let text=currentRaw;const re=new RegExp("("+(names.join("|"))+")","g");text=text.replace(re,"<span class='hl'>$1</span>");
+  document.getElementById("dText").innerHTML=text;
+}
+function apply(){
+  const selected=getSelected();
+  fetch(URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"applyHighlight",soVu:currentSoVu,selectedNames:selected,user:"Người dùng WebApp"})})
+  .then(r=>r.json()).then(res=>alert(res.message||"OK"));
+}
+function reset(){
+  fetch(URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"clearHighlight",soVu:currentSoVu,user:"Người dùng WebApp"})})
+  .then(r=>r.json()).then(res=>alert(res.message||"Đã bỏ bôi đỏ"));
+}
+</script>
+</body>
+</html>
