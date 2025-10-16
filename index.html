@@ -1,107 +1,163 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tra cứu phân công – Đội Khám nghiệm hiện trường</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tra cứu phân công</title>
 <style>
-  body { font-family: system-ui, sans-serif; background: #f8fafc; padding: 24px; color: #111; }
-  h1 { text-align: center; margin-bottom: 20px; }
-  input, button { font-size: 16px; padding: 8px 12px; }
-  button { cursor: pointer; border: none; border-radius: 6px; background: #2563eb; color: white; }
-  button:hover { background: #1d4ed8; }
-  #result { margin-top: 16px; padding: 16px; background: #fff; border-radius: 10px; box-shadow: 0 1px 3px #ccc; }
-  #names { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
-  label { background: #f1f5f9; padding: 4px 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
-  label.red { color: #dc2626; font-weight: bold; background: #fee2e2; }
-  #noiDung { margin-top: 4px; white-space: pre-wrap; background: #fdfdfd; border-radius: 8px; padding: 10px; border: 1px solid #e5e7eb; }
-  #log { font-size: 13px; color: #555; margin-top: 16px; text-align: center; }
+  body { font-family: system-ui, sans-serif; background:#f8fafc; padding:24px; color:#111; }
+  h1 { text-align:center; margin-bottom:16px; }
+  input, button { font-size:16px; padding:8px 12px; }
+  button { cursor:pointer; border:none; border-radius:6px; background:#2563eb; color:#fff; }
+  button:hover { background:#1d4ed8; }
+  #card { margin-top:16px; background:#fff; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+  #noiDung { margin-top:6px; white-space:pre-wrap; background:#fdfdfd; border:1px solid #e5e7eb; border-radius:8px; padding:10px;}
+  #names { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; }
+  label { background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; }
+  label.red { color:#dc2626; font-weight:700; background:#fee2e2; }
+  #note { color:#6b7280; font-size:13px; margin-top:8px;}
+  #log { text-align:center; font-size:13px; color:#555; margin-top:12px;}
 </style>
 </head>
 <body>
-<h1>Tra cứu Phân công công việc</h1>
+  <h1>Tra cứu phân công</h1>
 
-<div style="text-align:center;">
-  <input type="text" id="soVu" placeholder="Nhập số vụ..." />
-  <button onclick="traCuu()">🔍 Tra cứu</button>
-  <button onclick="boiDo()">🟥 Bôi đỏ</button>
-  <button onclick="boBoido()">🧹 Bỏ bôi đỏ</button>
-</div>
-
-<div id="result">
-  <div><b>Số vụ:</b> <span id="showSoVu">–</span></div>
-  <div style="margin-top:6px;">
-    <b>Nội dung (hiển thị màu thật):</b>
-    <div id="noiDung">–</div>
+  <div style="text-align:center;">
+    <input id="soVu" type="text" placeholder="Nhập số vụ…"/>
+    <button onclick="traCuu()">🔍 Tra cứu</button>
+    <button onclick="boiDo()">🟥 Bôi đỏ</button>
+    <button onclick="boBoido()">🧹 Bỏ bôi đỏ</button>
   </div>
-  <div id="names"></div>
-</div>
 
-<div id="log"></div>
+  <div id="card">
+    <div><b>Số vụ:</b> <span id="showSoVu">–</span></div>
+    <div style="margin-top:6px;"><b>Nội dung (màu thật):</b>
+      <div id="noiDung">–</div>
+    </div>
+    <div id="names"></div>
+    <div id="note"></div>
+  </div>
+
+  <div id="log"></div>
 
 <script>
-/* Thay URL này bằng link Web App của bạn */
+/** 🔗 Thay bằng URL /exec mới nhất của bạn */
 const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0IZj2a2ph9fws3g_zj01hEQhQwbHkJjzJ0Bq2ZiC0q/exec";
-const DANH_SACH = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
 
+/** Danh sách tên chuẩn để dò trong nội dung */
+const CANBO = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
+
+/** ── Helpers robust cho JSON ───────────────────────────────────────── */
+async function getJSON(url) {
+  const r = await fetch(url);
+  const j = await r.json();
+  // nếu backend trả dạng [ {...} ]
+  if (Array.isArray(j)) return j[0] || {};
+  return j;
+}
+async function postJSON(url, payload) {
+  const r = await fetch(url, { method: "POST", body: JSON.stringify(payload) });
+  const j = await r.json();
+  return Array.isArray(j) ? (j[0] || {}) : j;
+}
+/** Trích mảng từ {data:[…]} hoặc trả [] */
+function pickArray(resp) {
+  if (Array.isArray(resp)) return resp;
+  if (resp && Array.isArray(resp.data)) return resp.data;
+  return [];
+}
+
+/** ── State ─────────────────────────────────────────────────────────── */
+let currentSoVu = "";
+let lastRawText = "";
+
+/** ── Render checkbox chỉ tên có trong raw ─────────────────────────── */
+function renderCheckboxes(foundNames, coloredNames) {
+  const wrap = document.getElementById("names");
+  const note = document.getElementById("note");
+  wrap.innerHTML = "";
+  note.textContent = "";
+
+  if (!foundNames.length) {
+    note.textContent = "⚠️ Không phát hiện tên cán bộ nào trong nội dung.";
+    return;
+  }
+
+  foundNames.forEach(name => {
+    const checked = coloredNames.includes(name);
+    const label = document.createElement("label");
+    if (checked) label.classList.add("red");
+    label.innerHTML = `<input type="checkbox" name="cb" value="${name}" ${checked ? "checked":""}> ${name}`;
+    wrap.appendChild(label);
+  });
+}
+
+/** ── Tra cứu ───────────────────────────────────────────────────────── */
 async function traCuu() {
   const soVu = document.getElementById("soVu").value.trim();
   if (!soVu) return alert("Nhập số vụ!");
-  document.getElementById("showSoVu").innerText = soVu;
-  document.getElementById("noiDung").innerText = "Đang tải...";
+  currentSoVu = soVu;
+  document.getElementById("showSoVu").textContent = soVu;
+  document.getElementById("noiDung").textContent = "Đang tải…";
+  document.getElementById("names").innerHTML = "";
+  document.getElementById("note").textContent = "";
+  document.getElementById("log").textContent = "";
 
   try {
-    // 1️⃣ Lấy nội dung RichText HTML (có màu)
-    const htmlRes = await fetch(`${URL}?action=getRichHTML&soVu=${encodeURIComponent(soVu)}`).then(r=>r.json());
-    document.getElementById("noiDung").innerHTML = htmlRes.html || "(Không có dữ liệu)";
+    // 1) Lấy text gốc để LỌC tên
+    const info = await getJSON(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`);
+    if (!info || info.found === false) {
+      document.getElementById("noiDung").textContent = "(Không tìm thấy dữ liệu)";
+      return;
+    }
+    lastRawText = (info.raw || "").toString();
 
-    // 2️⃣ Lấy danh sách tên đã bôi đỏ
-    const coloredResp = await fetch(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`).then(r=>r.json());
-    const coloredArr = Array.isArray(coloredResp.data) ? coloredResp.data : [];
+    // 2) Lấy HTML RichText có màu thật
+    const rich = await getJSON(`${URL}?action=getRichHTML&soVu=${encodeURIComponent(soVu)}`);
+    document.getElementById("noiDung").innerHTML = rich && rich.html ? rich.html : "(Không có dữ liệu)";
 
-    // 3️⃣ Sinh danh sách tick
-    const container = document.getElementById("names");
-    container.innerHTML = "";
-    DANH_SACH.forEach(name => {
-      const isRed = coloredArr.includes(name);
-      const label = document.createElement("label");
-      if (isRed) label.classList.add("red");
-      label.innerHTML = `<input type="checkbox" name="cb" value="${name}" ${isRed?'checked':''}> ${name}`;
-      container.appendChild(label);
-    });
+    // 3) Lấy danh sách đã bôi đỏ
+    const coloredResp = await getJSON(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`);
+    const coloredArr = pickArray(coloredResp);
 
-    document.getElementById("log").innerText = `Đã tải thông tin số vụ ${soVu}.`;
+    // 4) Lọc danh sách tên chỉ những tên có xuất hiện trong raw
+    const rawLower = lastRawText.toLowerCase();
+    const foundNames = CANBO.filter(n => rawLower.includes(n.toLowerCase()));
+
+    // 5) Render checkbox
+    renderCheckboxes(foundNames, coloredArr);
+
+    document.getElementById("log").textContent = "Đã tải xong.";
   } catch (e) {
-    alert("Lỗi khi tra cứu: " + e.message);
+    document.getElementById("noiDung").textContent = "(Lỗi khi tải dữ liệu)";
+    document.getElementById("log").textContent = "Lỗi: " + e.message;
   }
 }
 
+/** ── Gửi bôi đỏ / bỏ bôi đỏ ───────────────────────────────────────── */
 async function boiDo() {
-  const soVu = document.getElementById("soVu").value.trim();
-  if (!soVu) return alert("Nhập số vụ!");
-  const selected = [...document.querySelectorAll("input[name='cb']:checked")].map(cb=>cb.value);
-  if (!selected.length) return alert("Chưa chọn tên!");
+  if (!currentSoVu) return alert("Hãy tra cứu trước!");
+  const selected = [...document.querySelectorAll("input[name='cb']:checked")].map(x => x.value);
+  if (!selected.length) return alert("Chưa chọn tên để bôi đỏ!");
+
   try {
-    const res = await fetch(URL, {
-      method: "POST",
-      body: JSON.stringify({ action:"applyHighlight", soVu, selectedNames: selected })
-    }).then(r=>r.json());
-    document.getElementById("log").innerText = res.message || "Đã bôi đỏ.";
-    await traCuu(); // cập nhật lại trạng thái mới
-  } catch (e) { alert("Lỗi bôi đỏ: " + e.message); }
+    const res = await postJSON(URL, { action: "applyHighlight", soVu: currentSoVu, selectedNames: selected, user: "WebApp" });
+    document.getElementById("log").textContent = res.message || "Đã bôi đỏ.";
+    await traCuu(); // refresh preview + checkbox
+  } catch (e) {
+    document.getElementById("log").textContent = "Lỗi bôi đỏ: " + e.message;
+  }
 }
 
 async function boBoido() {
-  const soVu = document.getElementById("soVu").value.trim();
-  if (!soVu) return alert("Nhập số vụ!");
+  if (!currentSoVu) return alert("Hãy tra cứu trước!");
   try {
-    const res = await fetch(URL, {
-      method: "POST",
-      body: JSON.stringify({ action:"clearHighlight", soVu })
-    }).then(r=>r.json());
-    document.getElementById("log").innerText = res.message || "Đã bỏ bôi đỏ.";
-    await traCuu(); // cập nhật lại
-  } catch (e) { alert("Lỗi bỏ bôi đỏ: " + e.message); }
+    const res = await postJSON(URL, { action: "clearHighlight", soVu: currentSoVu, user: "WebApp" });
+    document.getElementById("log").textContent = res.message || "Đã bỏ bôi đỏ.";
+    await traCuu(); // refresh preview + checkbox
+  } catch (e) {
+    document.getElementById("log").textContent = "Lỗi bỏ bôi đỏ: " + e.message;
+  }
 }
 </script>
 </body>
