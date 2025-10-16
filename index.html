@@ -41,48 +41,41 @@
   <div id="log"></div>
 
 <script>
-/** 🔗 Thay bằng URL /exec mới nhất của bạn */
+/** 🔗 Thay bằng URL /exec mới nhất của bạn (bạn đã đúng) */
 const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0IZj2a2ph9fws3g_zj01hEQhQwbHkJjzJ0Bq2ZiC0q/exec";
 
 /** Danh sách tên chuẩn để dò trong nội dung */
 const CANBO = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
 
-/** ── Helpers robust cho JSON ───────────────────────────────────────── */
+/** ── Helpers JSON ── */
 async function getJSON(url) {
   const r = await fetch(url);
   const j = await r.json();
-  // nếu backend trả dạng [ {...} ]
-  if (Array.isArray(j)) return j[0] || {};
-  return j;
-}
-async function postJSON(url, payload) {
-  const r = await fetch(url, { method: "POST", body: JSON.stringify(payload) });
-  const j = await r.json();
   return Array.isArray(j) ? (j[0] || {}) : j;
 }
-/** Trích mảng từ {data:[…]} hoặc trả [] */
-function pickArray(resp) {
-  if (Array.isArray(resp)) return resp;
-  if (resp && Array.isArray(resp.data)) return resp.data;
-  return [];
+/* ✅ THÊM: build query string cho GET */
+function qs(params) {
+  return Object.entries(params)
+    .map(([k,v]) => k + "=" + encodeURIComponent(typeof v === "string" ? v : JSON.stringify(v)))
+    .join("&");
 }
 
-/** ── State ─────────────────────────────────────────────────────────── */
+/* ❌ XOÁ: postJSON(...) cũ – KHÔNG dùng POST nữa */
+
+/** ── State ── */
 let currentSoVu = "";
 let lastRawText = "";
 
-/** ── Render checkbox chỉ tên có trong raw ─────────────────────────── */
+/** ── Render checkbox ── */
 function renderCheckboxes(foundNames, coloredNames) {
   const wrap = document.getElementById("names");
   const note = document.getElementById("note");
   wrap.innerHTML = "";
   note.textContent = "";
-
   if (!foundNames.length) {
     note.textContent = "⚠️ Không phát hiện tên cán bộ nào trong nội dung.";
     return;
   }
-
   foundNames.forEach(name => {
     const checked = coloredNames.includes(name);
     const label = document.createElement("label");
@@ -92,7 +85,7 @@ function renderCheckboxes(foundNames, coloredNames) {
   });
 }
 
-/** ── Tra cứu ───────────────────────────────────────────────────────── */
+/** ── Tra cứu ── */
 async function traCuu() {
   const soVu = document.getElementById("soVu").value.trim();
   if (!soVu) return alert("Nhập số vụ!");
@@ -104,7 +97,6 @@ async function traCuu() {
   document.getElementById("log").textContent = "";
 
   try {
-    // 1) Lấy text gốc để LỌC tên
     const info = await getJSON(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`);
     if (!info || info.found === false) {
       document.getElementById("noiDung").textContent = "(Không tìm thấy dữ liệu)";
@@ -112,19 +104,14 @@ async function traCuu() {
     }
     lastRawText = (info.raw || "").toString();
 
-    // 2) Lấy HTML RichText có màu thật
     const rich = await getJSON(`${URL}?action=getRichHTML&soVu=${encodeURIComponent(soVu)}`);
     document.getElementById("noiDung").innerHTML = rich && rich.html ? rich.html : "(Không có dữ liệu)";
 
-    // 3) Lấy danh sách đã bôi đỏ
     const coloredResp = await getJSON(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`);
-    const coloredArr = pickArray(coloredResp);
+    const coloredArr = Array.isArray(coloredResp.data) ? coloredResp.data : (Array.isArray(coloredResp) ? coloredResp : []);
 
-    // 4) Lọc danh sách tên chỉ những tên có xuất hiện trong raw
     const rawLower = lastRawText.toLowerCase();
     const foundNames = CANBO.filter(n => rawLower.includes(n.toLowerCase()));
-
-    // 5) Render checkbox
     renderCheckboxes(foundNames, coloredArr);
 
     document.getElementById("log").textContent = "Đã tải xong.";
@@ -134,16 +121,22 @@ async function traCuu() {
   }
 }
 
-/** ── Gửi bôi đỏ / bỏ bôi đỏ ───────────────────────────────────────── */
+/** ── ✅ Gọi GET để bôi đỏ / xoá, tránh CORS/preflight ── */
 async function boiDo() {
   if (!currentSoVu) return alert("Hãy tra cứu trước!");
   const selected = [...document.querySelectorAll("input[name='cb']:checked")].map(x => x.value);
   if (!selected.length) return alert("Chưa chọn tên để bôi đỏ!");
 
   try {
-    const res = await postJSON(URL, { action: "applyHighlight", soVu: currentSoVu, selectedNames: selected, user: "WebApp" });
+    const url = `${URL}?` + qs({
+      action: "applyHighlight",
+      soVu: currentSoVu,
+      selectedNames: selected,
+      user: "WebApp"
+    });
+    const res = await getJSON(url);
     document.getElementById("log").textContent = res.message || "Đã bôi đỏ.";
-    await traCuu(); // refresh preview + checkbox
+    await traCuu();
   } catch (e) {
     document.getElementById("log").textContent = "Lỗi bôi đỏ: " + e.message;
   }
@@ -151,10 +144,16 @@ async function boiDo() {
 
 async function boBoido() {
   if (!currentSoVu) return alert("Hãy tra cứu trước!");
+
   try {
-    const res = await postJSON(URL, { action: "clearHighlight", soVu: currentSoVu, user: "WebApp" });
+    const url = `${URL}?` + qs({
+      action: "clearHighlight",
+      soVu: currentSoVu,
+      user: "WebApp"
+    });
+    const res = await getJSON(url);
     document.getElementById("log").textContent = res.message || "Đã bỏ bôi đỏ.";
-    await traCuu(); // refresh preview + checkbox
+    await traCuu();
   } catch (e) {
     document.getElementById("log").textContent = "Lỗi bỏ bôi đỏ: " + e.message;
   }
