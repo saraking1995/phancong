@@ -66,10 +66,10 @@
   <div id="result"></div>
 
   <script>
-    // ⚙️ Link Apps Script backend
+    // ⚙️ Link Apps Script backend của bạn
     const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0IZj2a2ph9fws3g_zj01hEQhQwbHkJjzJ0Bq2ZiC0q/exec";
 
-    // Danh sách cố định tên cán bộ
+    // Danh sách toàn bộ cán bộ (để đối chiếu lọc ra ai có trong nội dung)
     const CANBO = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
 
     async function fetchData() {
@@ -84,36 +84,47 @@
       try {
         const res = await fetch(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`);
         const data = await res.json();
-        console.log("📦 Dữ liệu trả về:", data);
 
         if (!data.found) {
           resultDiv.textContent = "⚠️ Không tìm thấy số vụ " + soVu;
           return;
         }
 
-        // hiển thị nội dung và checkbox
-        let html = `<b>Số vụ:</b> ${data.soVu}<br><b>Sheet:</b> ${data.sheet}<br><b>Nội dung:</b><br>
-        <div style="margin:8px 0; white-space:pre-line;">${data.raw}</div>
-        <div><b>Chọn tên cần bôi đỏ:</b></div>
-        <div class="checkboxes">`;
+        // 🔹 Lọc danh sách cán bộ có trong nội dung raw
+        const rawText = data.raw || "";
+        const foundNames = CANBO.filter(name => rawText.toLowerCase().includes(name.toLowerCase()));
 
-        CANBO.forEach(name => {
-          html += `<label><input type="checkbox" name="cb" value="${name}"> ${name}</label>`;
-        });
-        html += `</div>
-        <button onclick="applyHighlight('${data.soVu}')">💥 Bôi đỏ</button>
-        <button onclick="clearHighlight('${data.soVu}')">🧹 Bỏ bôi đỏ</button>`;
+        // 🔹 Giao diện hiển thị
+        let html = `<b>Số vụ:</b> ${data.soVu}<br><b>Sheet:</b> ${data.sheet}<br><b>Nội dung:</b><br>
+        <div style="margin:8px 0; white-space:pre-line;">${rawText}</div>`;
+
+        if (foundNames.length === 0) {
+          html += `<div>⚠️ Không phát hiện tên cán bộ nào trong nội dung.</div>`;
+        } else {
+          html += `<div><b>Chọn tên cần bôi đỏ:</b></div><div class="checkboxes">`;
+          foundNames.forEach(name => {
+            html += `<label><input type="checkbox" name="cb" value="${name}"> ${name}</label>`;
+          });
+          html += `</div>
+          <button onclick="applyHighlight('${data.soVu}')">💥 Bôi đỏ</button>
+          <button onclick="clearHighlight('${data.soVu}')">🧹 Bỏ bôi đỏ</button>`;
+        }
 
         resultDiv.innerHTML = html;
 
-        // tự tick lại những tên đã tô đỏ
-        const colored = await fetch(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`).then(r => r.json());
+        // 🔹 Tự tick lại những tên đã tô đỏ
+        const coloredResp = await fetch(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`).then(r => r.json());
+        const coloredArr = Array.isArray(coloredResp)
+          ? coloredResp
+          : (Array.isArray(coloredResp.data) ? coloredResp.data : []);
+
         document.querySelectorAll("input[name='cb']").forEach(cb => {
-          if (colored.includes(cb.value)) {
+          if (coloredArr.includes(cb.value)) {
             cb.checked = true;
             cb.parentElement.classList.add("red");
           }
         });
+
       } catch (err) {
         console.error(err);
         resultDiv.textContent = "❌ Lỗi: " + err.message;
