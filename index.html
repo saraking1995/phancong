@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tra cứu Phân công – Đội Khám nghiệm hiện trường</title>
+<title>Tra cứu phân công – Đội Khám nghiệm hiện trường</title>
 <style>
   body { font-family: system-ui, sans-serif; background: #f8fafc; padding: 24px; color: #111; }
   h1 { text-align: center; margin-bottom: 20px; }
@@ -14,7 +14,8 @@
   #names { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
   label { background: #f1f5f9; padding: 4px 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
   label.red { color: #dc2626; font-weight: bold; background: #fee2e2; }
-  #log { font-size: 13px; color: #555; margin-top: 16px; }
+  #noiDung { margin-top: 4px; white-space: pre-wrap; background: #fdfdfd; border-radius: 8px; padding: 10px; border: 1px solid #e5e7eb; }
+  #log { font-size: 13px; color: #555; margin-top: 16px; text-align: center; }
 </style>
 </head>
 <body>
@@ -29,13 +30,17 @@
 
 <div id="result">
   <div><b>Số vụ:</b> <span id="showSoVu">–</span></div>
-  <div style="margin-top:6px;"><b>Nội dung:</b> <span id="noiDung">–</span></div>
+  <div style="margin-top:6px;">
+    <b>Nội dung (hiển thị màu thật):</b>
+    <div id="noiDung">–</div>
+  </div>
   <div id="names"></div>
 </div>
 
 <div id="log"></div>
 
 <script>
+/* Thay URL này bằng link Web App của bạn */
 const URL = "https://script.google.com/macros/s/AKfycbzJyJXoS21jGTI0hyLmOVr7GNfskFp--QwJhddkl2oAipRC-go44t2JyRx0Ea664ngU/exec";
 const DANH_SACH = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
 
@@ -46,12 +51,10 @@ async function traCuu() {
   document.getElementById("noiDung").innerText = "Đang tải...";
 
   try {
-    // 1️⃣ Lấy nội dung phân công
-    const res = await fetch(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`).then(r=>r.json());
-    if (!res.found) return alert("Không tìm thấy số vụ!");
+    // 1️⃣ Lấy nội dung RichText HTML (có màu)
+    const htmlRes = await fetch(`${URL}?action=getRichHTML&soVu=${encodeURIComponent(soVu)}`).then(r=>r.json());
+    document.getElementById("noiDung").innerHTML = htmlRes.html || "(Không có dữ liệu)";
 
-    document.getElementById("noiDung").innerText = res.raw || "(Trống)";
-    
     // 2️⃣ Lấy danh sách tên đã bôi đỏ
     const coloredResp = await fetch(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`).then(r=>r.json());
     const coloredArr = Array.isArray(coloredResp.data) ? coloredResp.data : [];
@@ -84,7 +87,7 @@ async function boiDo() {
       body: JSON.stringify({ action:"applyHighlight", soVu, selectedNames: selected })
     }).then(r=>r.json());
     document.getElementById("log").innerText = res.message || "Đã bôi đỏ.";
-    traCuu(); // cập nhật lại trạng thái mới
+    await traCuu(); // cập nhật lại trạng thái mới
   } catch (e) { alert("Lỗi bôi đỏ: " + e.message); }
 }
 
@@ -97,7 +100,7 @@ async function boBoido() {
       body: JSON.stringify({ action:"clearHighlight", soVu })
     }).then(r=>r.json());
     document.getElementById("log").innerText = res.message || "Đã bỏ bôi đỏ.";
-    traCuu(); // cập nhật lại
+    await traCuu(); // cập nhật lại
   } catch (e) { alert("Lỗi bỏ bôi đỏ: " + e.message); }
 }
 </script>
