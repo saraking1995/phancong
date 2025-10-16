@@ -3,87 +3,147 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tra cứu Phân công công việc</title>
+  <title>Tra cứu & Bôi đỏ Phân công</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 40px auto;
-      max-width: 600px;
-      line-height: 1.5;
+      max-width: 650px;
+      line-height: 1.6;
       color: #333;
     }
-    input {
+    input[type="text"] {
       padding: 8px;
       width: 200px;
     }
     button {
-      padding: 8px 16px;
+      padding: 8px 14px;
+      margin-top: 5px;
       cursor: pointer;
-      background: #2563eb;
-      color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 5px;
+      background: #2563eb;
+      color: #fff;
+    }
+    button:hover {
+      background: #1d4ed8;
     }
     #result {
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #ddd;
+      margin-top: 25px;
+      padding: 15px;
+      border: 1px solid #ccc;
       background: #f9f9f9;
-      white-space: pre-line;
+    }
+    .checkboxes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      margin-top: 15px;
+    }
+    label {
+      cursor: pointer;
+      user-select: none;
     }
     #loading {
       display: none;
-      color: #888;
+      color: #777;
       margin-top: 10px;
+    }
+    .red {
+      color: #dc2626;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h2>🔍 Tra cứu Phân công công việc</h2>
-  <p>Nhập số vụ: <input id="soVu" type="text" placeholder="Ví dụ: 292"> 
-  <button onclick="fetchData()">Tra cứu</button></p>
+  <h2>🔍 Tra cứu & Bôi đỏ Phân công</h2>
+  <p>
+    Nhập số vụ: 
+    <input id="soVu" type="text" placeholder="Ví dụ: 292">
+    <button onclick="fetchData()">Tra cứu</button>
+  </p>
   <div id="loading">⏳ Đang xử lý...</div>
   <div id="result"></div>
 
   <script>
-    // ✅ Link Apps Script (đặt link exec của bạn tại đây)
+    // ⚙️ Link Apps Script backend
     const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0IZj2a2ph9fws3g_zj01hEQhQwbHkJjzJ0Bq2ZiC0q/exec";
+
+    // Danh sách cố định tên cán bộ
+    const CANBO = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
 
     async function fetchData() {
       const soVu = document.getElementById("soVu").value.trim();
       const resultDiv = document.getElementById("result");
-      const loadingDiv = document.getElementById("loading");
+      const loading = document.getElementById("loading");
 
-      if (!soVu) {
-        alert("Vui lòng nhập số vụ!");
-        return;
-      }
-
-      resultDiv.textContent = "";
-      loadingDiv.style.display = "block";
+      if (!soVu) return alert("Nhập số vụ trước!");
+      resultDiv.innerHTML = "";
+      loading.style.display = "block";
 
       try {
-        const response = await fetch(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`);
-        if (!response.ok) throw new Error("Lỗi kết nối: " + response.status);
+        const res = await fetch(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`);
+        const data = await res.json();
+        console.log("📦 Dữ liệu trả về:", data);
 
-        const data = await response.json();
-        console.log("🔹 JSON trả về:", data); // để bạn xem trong F12 Console
-
-        if (data.found) {
-          resultDiv.innerHTML = `
-            <b>Số vụ:</b> ${data.soVu}<br>
-            <b>Sheet:</b> ${data.sheet}<br>
-            <b>Nội dung:</b><br>
-            <div style="margin-top:8px; background:#fff; border:1px solid #ccc; padding:10px;">${data.raw}</div>
-          `;
-        } else {
+        if (!data.found) {
           resultDiv.textContent = "⚠️ Không tìm thấy số vụ " + soVu;
+          return;
         }
+
+        // hiển thị nội dung và checkbox
+        let html = `<b>Số vụ:</b> ${data.soVu}<br><b>Sheet:</b> ${data.sheet}<br><b>Nội dung:</b><br>
+        <div style="margin:8px 0; white-space:pre-line;">${data.raw}</div>
+        <div><b>Chọn tên cần bôi đỏ:</b></div>
+        <div class="checkboxes">`;
+
+        CANBO.forEach(name => {
+          html += `<label><input type="checkbox" name="cb" value="${name}"> ${name}</label>`;
+        });
+        html += `</div>
+        <button onclick="applyHighlight('${data.soVu}')">💥 Bôi đỏ</button>
+        <button onclick="clearHighlight('${data.soVu}')">🧹 Bỏ bôi đỏ</button>`;
+
+        resultDiv.innerHTML = html;
+
+        // tự tick lại những tên đã tô đỏ
+        const colored = await fetch(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`).then(r => r.json());
+        document.querySelectorAll("input[name='cb']").forEach(cb => {
+          if (colored.includes(cb.value)) {
+            cb.checked = true;
+            cb.parentElement.classList.add("red");
+          }
+        });
       } catch (err) {
-        console.error("❌ Lỗi:", err);
+        console.error(err);
         resultDiv.textContent = "❌ Lỗi: " + err.message;
       } finally {
-        loadingDiv.style.display = "none";
+        loading.style.display = "none";
+      }
+    }
+
+    async function applyHighlight(soVu) {
+      const checked = Array.from(document.querySelectorAll("input[name='cb']:checked")).map(x => x.value);
+      if (!checked.length) return alert("Chưa chọn tên nào để bôi đỏ!");
+      const payload = { action: "applyHighlight", soVu, selectedNames: checked, user: "Khách WebApp" };
+
+      try {
+        const res = await fetch(URL, { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "text/plain" } });
+        const data = await res.json();
+        alert("✅ " + (data.message || "Đã bôi đỏ thành công!"));
+      } catch (err) {
+        alert("❌ Lỗi: " + err.message);
+      }
+    }
+
+    async function clearHighlight(soVu) {
+      const payload = { action: "clearHighlight", soVu, user: "Khách WebApp" };
+      try {
+        const res = await fetch(URL, { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "text/plain" } });
+        const data = await res.json();
+        alert("🧹 " + (data.message || "Đã bỏ bôi đỏ."));
+      } catch (err) {
+        alert("❌ Lỗi: " + err.message);
       }
     }
   </script>
