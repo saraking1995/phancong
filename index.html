@@ -6,24 +6,22 @@
 <title>Tra cứu phân công – Đội Khám nghiệm hiện trường</title>
 <style>
   body { font-family: system-ui, sans-serif; background:#f8fafc; padding:24px; color:#111; }
-  #greeting { text-align:center; color:#1e3a8a; font-weight:700; margin-bottom:6px; }
   h1 { text-align:center; margin-bottom:20px; }
   input, button { font-size:16px; padding:8px 12px; }
-  button { cursor:pointer; border:none; border-radius:6px; background:#2563eb; color:#fff; transition:background .2s; }
+  button { cursor:pointer; border:none; border-radius:6px; background:#2563eb; color:#fff; transition:background 0.2s; }
   button:hover { background:#1d4ed8; }
   #card { margin-top:16px; background:#fff; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
   #noiDung { margin-top:6px; white-space:pre-wrap; background:#fdfdfd; border:1px solid #e5e7eb; border-radius:8px; padding:10px; min-height:80px; }
-  #note, #instruction { color:#6b7280; font-size:14px; margin-top:8px; text-align:center; }
-  #names { margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  #names { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; }
   label { background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; }
   label.red { color:#dc2626; font-weight:700; background:#fee2e2; }
+  #note { color:#6b7280; font-size:13px; margin-top:8px;}
   #log { text-align:center; font-size:13px; color:#555; margin-top:12px;}
   .bottom-buttons { text-align:center; margin-top:20px; }
   .bottom-buttons button { margin:0 6px; }
 </style>
 </head>
 <body>
-  <div id="greeting">–</div>
   <h1>Tra cứu Phân công công việc</h1>
 
   <!-- Phần nhập số vụ và tra cứu -->
@@ -41,16 +39,13 @@
       <div id="noiDung">–</div>
     </div>
 
-    <!-- Dòng chú thích -->
-    <div id="instruction">[Xong công việc của mình các đồng chí chọn tên để bôi đỏ nhé.]</div>
-
     <div id="names"></div>
     <div id="note"></div>
 
-    <!-- Hai nút hành động ở dưới cùng -->
+    <!-- Hai nút hành động được đưa xuống dưới -->
     <div class="bottom-buttons">
-      <button onclick="boiDo()">🟥 Hoàn thành</button>
-      <button onclick="boBoido()">🧹 Xoá toàn bộ</button>
+      <button onclick="boiDo()">🟥 Bôi đỏ</button>
+      <button onclick="boBoido()">🧹 Bỏ bôi đỏ</button>
     </div>
   </div>
 
@@ -63,46 +58,21 @@ const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0I
 /** Danh sách cán bộ chuẩn */
 const CANBO = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
 
-/** ── Quản lý tên người dùng ─────────────────────────────── */
-function getUserName() {
-  return (localStorage.getItem("pc_user") || "").trim();
-}
-function setUserName(name) {
-  localStorage.setItem("pc_user", name.trim());
-  document.getElementById("greeting").textContent = `👋 Chào đồng chí ${name.trim()}`;
-}
-function ensureName() {
-  let name = getUserName();
-  if (!name) {
-    const input = prompt("Vui lòng nhập tên đồng chí:");
-    if (input && input.trim()) {
-      setUserName(input.trim());
-    } else {
-      alert("Bạn cần nhập tên để tiếp tục.");
-      return ensureName();
-    }
-  } else {
-    document.getElementById("greeting").textContent = `👋 Chào đồng chí ${name}`;
-  }
-}
-
-/** ── Helper xử lý JSON ─────────────────────────────── */
 async function getJSON(url) {
   const r = await fetch(url);
   const j = await r.json();
   return Array.isArray(j) ? (j[0] || {}) : j;
 }
+
 function pickArray(resp) {
   if (Array.isArray(resp)) return resp;
   if (resp && Array.isArray(resp.data)) return resp.data;
   return [];
 }
 
-/** ── Biến trạng thái ─────────────────────────────── */
 let currentSoVu = "";
 let lastRawText = "";
 
-/** ── Hiển thị checkbox ─────────────────────────────── */
 function renderCheckboxes(foundNames, coloredNames) {
   const wrap = document.getElementById("names");
   const note = document.getElementById("note");
@@ -123,11 +93,7 @@ function renderCheckboxes(foundNames, coloredNames) {
   });
 }
 
-/** ── Tra cứu ─────────────────────────────── */
 async function traCuu() {
-  ensureName();
-  const user = getUserName(); if (!user) return;
-
   const soVu = document.getElementById("soVu").value.trim();
   if (!soVu) return alert("Nhập số vụ!");
   currentSoVu = soVu;
@@ -162,37 +128,32 @@ async function traCuu() {
   }
 }
 
-/** ── Bôi đỏ / Bỏ bôi đỏ (gửi kèm tên để log) ─────────────────────── */
-function qs(params) {
-  return Object.entries(params)
-    .map(([k,v]) => k + "=" + encodeURIComponent(typeof v === "string" ? v : JSON.stringify(v)))
-    .join("&");
-}
-
 async function boiDo() {
   if (!currentSoVu) return alert("Hãy tra cứu trước!");
-  const user = getUserName(); if (!user) return ensureName();
   const selected = [...document.querySelectorAll("input[name='cb']:checked")].map(x => x.value);
   if (!selected.length) return alert("Chưa chọn tên để bôi đỏ!");
 
-  const url = `${URL}?` + qs({ action:"applyHighlight", soVu: currentSoVu, selectedNames: selected, user });
-  const res = await getJSON(url);
-  document.getElementById("log").textContent = res.message || "Đã bôi đỏ.";
-  await traCuu();
+  try {
+    const url = `${URL}?action=applyHighlight&soVu=${encodeURIComponent(currentSoVu)}&selectedNames=${encodeURIComponent(JSON.stringify(selected))}&user=WebApp`;
+    const res = await getJSON(url);
+    document.getElementById("log").textContent = res.message || "Đã bôi đỏ.";
+    await traCuu();
+  } catch (e) {
+    document.getElementById("log").textContent = "Lỗi bôi đỏ: " + e.message;
+  }
 }
 
 async function boBoido() {
   if (!currentSoVu) return alert("Hãy tra cứu trước!");
-  const user = getUserName(); if (!user) return ensureName();
-
-  const url = `${URL}?` + qs({ action:"clearHighlight", soVu: currentSoVu, user });
-  const res = await getJSON(url);
-  document.getElementById("log").textContent = res.message || "Đã bỏ bôi đỏ.";
-  await traCuu();
+  try {
+    const url = `${URL}?action=clearHighlight&soVu=${encodeURIComponent(currentSoVu)}&user=WebApp`;
+    const res = await getJSON(url);
+    document.getElementById("log").textContent = res.message || "Đã bỏ bôi đỏ.";
+    await traCuu();
+  } catch (e) {
+    document.getElementById("log").textContent = "Lỗi bỏ bôi đỏ: " + e.message;
+  }
 }
-
-/** ── Khi mở trang ─────────────────────────────── */
-window.addEventListener("DOMContentLoaded", () => ensureName());
 </script>
 </body>
 </html>
