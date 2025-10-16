@@ -1,77 +1,91 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tra cứu & Bôi đỏ</title>
-<style>
-body{font-family:system-ui,Arial,sans-serif;background:#f8fafc;margin:0;padding:0}
-.container{max-width:850px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
-h1{text-align:center}
-.hl{color:#dc2626;font-weight:700}
-button{border:none;border-radius:8px;padding:10px 16px;margin:5px;cursor:pointer}
-.btn{background:#2563eb;color:#fff}
-.btn.secondary{background:#6b7280;color:#fff}
-.result{margin-top:12px;padding:12px;border:1px dashed #ccc;border-radius:12px;min-height:60px;white-space:pre-wrap}
-.options{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.opt{border:1px solid #ccc;border-radius:999px;padding:6px 10px}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tra cứu Phân công công việc</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px auto;
+      max-width: 600px;
+      line-height: 1.5;
+      color: #333;
+    }
+    input {
+      padding: 8px;
+      width: 200px;
+    }
+    button {
+      padding: 8px 16px;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      background: #f9f9f9;
+      white-space: pre-line;
+    }
+    #loading {
+      display: none;
+      color: #888;
+      margin-top: 10px;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-  <h1>Tra cứu & Bôi đỏ phân công</h1>
-  <input id="soVu" type="text" placeholder="Nhập số vụ...">
-  <button class="btn" onclick="fetchData()">Tra cứu</button>
-  <div id="dText" class="result"></div>
-  <div id="checkZone" class="options"></div>
-  <button class="btn" onclick="apply()">Đồng ý (Bôi đỏ)</button>
-  <button class="btn secondary" onclick="reset()">Bỏ bôi đỏ</button>
-</div>
+  <h2>🔍 Tra cứu Phân công công việc</h2>
+  <p>Nhập số vụ: <input id="soVu" type="text" placeholder="Ví dụ: 292"> 
+  <button onclick="fetchData()">Tra cứu</button></p>
+  <div id="loading">⏳ Đang xử lý...</div>
+  <div id="result"></div>
 
-<script>
-const FIXED_NAMES=['Nghĩa','Thủy','Đạt','Trường','Thống','Kỳ Anh','Thao','Tiến','Huy','Nam','PNam','Tình','Quân','Lượng','Phúc','Khang','Dũng','Nhật','Sáng','Khoa','Bình','Tuấn','Hải','Tuân','Trung','Duy'];
-const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0IZj2a2ph9fws3g_zj01hEQhQwbHkJjzJ0Bq2ZiC0q/exec";
+  <script>
+    // ✅ Link Apps Script (đặt link exec của bạn tại đây)
+    const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0IZj2a2ph9fws3g_zj01hEQhQwbHkJjzJ0Bq2ZiC0q/exec";
 
-let currentSoVu="", currentRaw="";
-function fetchData() {
-  const soVu = document.getElementById("soVu").value.trim();
-  if (!soVu) return alert("Nhập số vụ!");
+    async function fetchData() {
+      const soVu = document.getElementById("soVu").value.trim();
+      const resultDiv = document.getElementById("result");
+      const loadingDiv = document.getElementById("loading");
 
-  fetch(URL + "?action=getPhanCongBySoVu&soVu=" + encodeURIComponent(soVu))
-    .then(r => r.json())
-    .then(res => {
-      if (!res.found) {
-        alert("Không tìm thấy số vụ " + soVu);
+      if (!soVu) {
+        alert("Vui lòng nhập số vụ!");
         return;
       }
-      document.getElementById("dText").textContent = res.raw;
-    })
-    .catch(err => alert("Lỗi: " + err));
-}
 
-function renderCheckboxes(names){
-  const zone=document.getElementById("checkZone");zone.innerHTML="";
-  names.forEach(n=>{
-    const label=document.createElement("label");label.className="opt";
-    const cb=document.createElement("input");cb.type="checkbox";cb.value=n;
-    cb.onchange=()=>highlight(getSelected());
-    label.appendChild(cb);label.append(" "+n);zone.appendChild(label);
-  });
-}
-function getSelected(){return [...document.querySelectorAll("#checkZone input:checked")].map(c=>c.value);}
-function highlight(names){
-  let text=currentRaw;const re=new RegExp("("+(names.join("|"))+")","g");text=text.replace(re,"<span class='hl'>$1</span>");
-  document.getElementById("dText").innerHTML=text;
-}
-function apply(){
-  const selected=getSelected();
-  fetch(URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"applyHighlight",soVu:currentSoVu,selectedNames:selected,user:"Người dùng WebApp"})})
-  .then(r=>r.json()).then(res=>alert(res.message||"OK"));
-}
-function reset(){
-  fetch(URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"clearHighlight",soVu:currentSoVu,user:"Người dùng WebApp"})})
-  .then(r=>r.json()).then(res=>alert(res.message||"Đã bỏ bôi đỏ"));
-}
-</script>
+      resultDiv.textContent = "";
+      loadingDiv.style.display = "block";
+
+      try {
+        const response = await fetch(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`);
+        if (!response.ok) throw new Error("Lỗi kết nối: " + response.status);
+
+        const data = await response.json();
+        console.log("🔹 JSON trả về:", data); // để bạn xem trong F12 Console
+
+        if (data.found) {
+          resultDiv.innerHTML = `
+            <b>Số vụ:</b> ${data.soVu}<br>
+            <b>Sheet:</b> ${data.sheet}<br>
+            <b>Nội dung:</b><br>
+            <div style="margin-top:8px; background:#fff; border:1px solid #ccc; padding:10px;">${data.raw}</div>
+          `;
+        } else {
+          resultDiv.textContent = "⚠️ Không tìm thấy số vụ " + soVu;
+        }
+      } catch (err) {
+        console.error("❌ Lỗi:", err);
+        resultDiv.textContent = "❌ Lỗi: " + err.message;
+      } finally {
+        loadingDiv.style.display = "none";
+      }
+    }
+  </script>
 </body>
 </html>
