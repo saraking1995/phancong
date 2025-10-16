@@ -13,10 +13,10 @@
   button:hover { background:#1d4ed8; }
   #card { margin-top:16px; background:#fff; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
   #noiDung { margin-top:6px; white-space:pre-wrap; background:#fdfdfd; border:1px solid #e5e7eb; border-radius:8px; padding:10px; min-height:80px; }
-  #names { margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; }
+  #note, #instruction { color:#6b7280; font-size:14px; margin-top:8px; text-align:center; }
+  #names { margin-top:8px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
   label { background:#f1f5f9; padding:4px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; }
   label.red { color:#dc2626; font-weight:700; background:#fee2e2; }
-  #note { color:#6b7280; font-size:13px; margin-top:8px;}
   #log { text-align:center; font-size:13px; color:#555; margin-top:12px;}
   .bottom-buttons { text-align:center; margin-top:20px; }
   .bottom-buttons button { margin:0 6px; }
@@ -41,13 +41,16 @@
       <div id="noiDung">–</div>
     </div>
 
+    <!-- Dòng chú thích -->
+    <div id="instruction">[Xong công việc của mình các đồng chí chọn tên để bôi đỏ nhé.]</div>
+
     <div id="names"></div>
     <div id="note"></div>
 
     <!-- Hai nút hành động ở dưới cùng -->
     <div class="bottom-buttons">
-      <button onclick="boiDo()">🟥 Bôi đỏ</button>
-      <button onclick="boBoido()">🧹 Bỏ bôi đỏ</button>
+      <button onclick="boiDo()">🟥 Hoàn thành</button>
+      <button onclick="boBoido()">🧹 Xoá toàn bộ</button>
     </div>
   </div>
 
@@ -60,7 +63,7 @@ const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0I
 /** Danh sách cán bộ chuẩn */
 const CANBO = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
 
-/** ── Quản lý tên người dùng (chỉ để chào & log) ─────────────────── */
+/** ── Quản lý tên người dùng ─────────────────────────────── */
 function getUserName() {
   return (localStorage.getItem("pc_user") || "").trim();
 }
