@@ -1,162 +1,105 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tra cứu & Bôi đỏ Phân công</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px auto;
-      max-width: 650px;
-      line-height: 1.6;
-      color: #333;
-    }
-    input[type="text"] {
-      padding: 8px;
-      width: 200px;
-    }
-    button {
-      padding: 8px 14px;
-      margin-top: 5px;
-      cursor: pointer;
-      border: none;
-      border-radius: 5px;
-      background: #2563eb;
-      color: #fff;
-    }
-    button:hover {
-      background: #1d4ed8;
-    }
-    #result {
-      margin-top: 25px;
-      padding: 15px;
-      border: 1px solid #ccc;
-      background: #f9f9f9;
-    }
-    .checkboxes {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 20px;
-      margin-top: 15px;
-    }
-    label {
-      cursor: pointer;
-      user-select: none;
-    }
-    #loading {
-      display: none;
-      color: #777;
-      margin-top: 10px;
-    }
-    .red {
-      color: #dc2626;
-      font-weight: bold;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tra cứu Phân công – Đội Khám nghiệm hiện trường</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f8fafc; padding: 24px; color: #111; }
+  h1 { text-align: center; margin-bottom: 20px; }
+  input, button { font-size: 16px; padding: 8px 12px; }
+  button { cursor: pointer; border: none; border-radius: 6px; background: #2563eb; color: white; }
+  button:hover { background: #1d4ed8; }
+  #result { margin-top: 16px; padding: 16px; background: #fff; border-radius: 10px; box-shadow: 0 1px 3px #ccc; }
+  #names { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+  label { background: #f1f5f9; padding: 4px 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  label.red { color: #dc2626; font-weight: bold; background: #fee2e2; }
+  #log { font-size: 13px; color: #555; margin-top: 16px; }
+</style>
 </head>
 <body>
-  <h2>🔍 Tra cứu & Bôi đỏ Phân công</h2>
-  <p>
-    Nhập số vụ: 
-    <input id="soVu" type="text" placeholder="Ví dụ: 292">
-    <button onclick="fetchData()">Tra cứu</button>
-  </p>
-  <div id="loading">⏳ Đang xử lý...</div>
-  <div id="result"></div>
+<h1>Tra cứu Phân công công việc</h1>
 
-  <script>
-    // ⚙️ Link Apps Script backend của bạn
-    const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0IZj2a2ph9fws3g_zj01hEQhQwbHkJjzJ0Bq2ZiC0q/exec";
+<div style="text-align:center;">
+  <input type="text" id="soVu" placeholder="Nhập số vụ..." />
+  <button onclick="traCuu()">🔍 Tra cứu</button>
+  <button onclick="boiDo()">🟥 Bôi đỏ</button>
+  <button onclick="boBoido()">🧹 Bỏ bôi đỏ</button>
+</div>
 
-    // Danh sách toàn bộ cán bộ (để đối chiếu lọc ra ai có trong nội dung)
-    const CANBO = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
+<div id="result">
+  <div><b>Số vụ:</b> <span id="showSoVu">–</span></div>
+  <div style="margin-top:6px;"><b>Nội dung:</b> <span id="noiDung">–</span></div>
+  <div id="names"></div>
+</div>
 
-    async function fetchData() {
-      const soVu = document.getElementById("soVu").value.trim();
-      const resultDiv = document.getElementById("result");
-      const loading = document.getElementById("loading");
+<div id="log"></div>
 
-      if (!soVu) return alert("Nhập số vụ trước!");
-      resultDiv.innerHTML = "";
-      loading.style.display = "block";
+<script>
+const URL = "https://script.google.com/macros/s/AKfycbzJyJXoS21jGTI0hyLmOVr7GNfskFp--QwJhddkl2oAipRC-go44t2JyRx0Ea664ngU/exec";
+const DANH_SACH = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
 
-      try {
-        const res = await fetch(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`);
-        const data = await res.json();
+async function traCuu() {
+  const soVu = document.getElementById("soVu").value.trim();
+  if (!soVu) return alert("Nhập số vụ!");
+  document.getElementById("showSoVu").innerText = soVu;
+  document.getElementById("noiDung").innerText = "Đang tải...";
 
-        if (!data.found) {
-          resultDiv.textContent = "⚠️ Không tìm thấy số vụ " + soVu;
-          return;
-        }
+  try {
+    // 1️⃣ Lấy nội dung phân công
+    const res = await fetch(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`).then(r=>r.json());
+    if (!res.found) return alert("Không tìm thấy số vụ!");
 
-        // 🔹 Lọc danh sách cán bộ có trong nội dung raw
-        const rawText = data.raw || "";
-        const foundNames = CANBO.filter(name => rawText.toLowerCase().includes(name.toLowerCase()));
+    document.getElementById("noiDung").innerText = res.raw || "(Trống)";
+    
+    // 2️⃣ Lấy danh sách tên đã bôi đỏ
+    const coloredResp = await fetch(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`).then(r=>r.json());
+    const coloredArr = Array.isArray(coloredResp.data) ? coloredResp.data : [];
 
-        // 🔹 Giao diện hiển thị
-        let html = `<b>Số vụ:</b> ${data.soVu}<br><b>Sheet:</b> ${data.sheet}<br><b>Nội dung:</b><br>
-        <div style="margin:8px 0; white-space:pre-line;">${rawText}</div>`;
+    // 3️⃣ Sinh danh sách tick
+    const container = document.getElementById("names");
+    container.innerHTML = "";
+    DANH_SACH.forEach(name => {
+      const isRed = coloredArr.includes(name);
+      const label = document.createElement("label");
+      if (isRed) label.classList.add("red");
+      label.innerHTML = `<input type="checkbox" name="cb" value="${name}" ${isRed?'checked':''}> ${name}`;
+      container.appendChild(label);
+    });
 
-        if (foundNames.length === 0) {
-          html += `<div>⚠️ Không phát hiện tên cán bộ nào trong nội dung.</div>`;
-        } else {
-          html += `<div><b>Chọn tên cần bôi đỏ:</b></div><div class="checkboxes">`;
-          foundNames.forEach(name => {
-            html += `<label><input type="checkbox" name="cb" value="${name}"> ${name}</label>`;
-          });
-          html += `</div>
-          <button onclick="applyHighlight('${data.soVu}')">💥 Bôi đỏ</button>
-          <button onclick="clearHighlight('${data.soVu}')">🧹 Bỏ bôi đỏ</button>`;
-        }
+    document.getElementById("log").innerText = `Đã tải thông tin số vụ ${soVu}.`;
+  } catch (e) {
+    alert("Lỗi khi tra cứu: " + e.message);
+  }
+}
 
-        resultDiv.innerHTML = html;
+async function boiDo() {
+  const soVu = document.getElementById("soVu").value.trim();
+  if (!soVu) return alert("Nhập số vụ!");
+  const selected = [...document.querySelectorAll("input[name='cb']:checked")].map(cb=>cb.value);
+  if (!selected.length) return alert("Chưa chọn tên!");
+  try {
+    const res = await fetch(URL, {
+      method: "POST",
+      body: JSON.stringify({ action:"applyHighlight", soVu, selectedNames: selected })
+    }).then(r=>r.json());
+    document.getElementById("log").innerText = res.message || "Đã bôi đỏ.";
+    traCuu(); // cập nhật lại trạng thái mới
+  } catch (e) { alert("Lỗi bôi đỏ: " + e.message); }
+}
 
-        // 🔹 Tự tick lại những tên đã tô đỏ
-        const coloredResp = await fetch(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`).then(r => r.json());
-        const coloredArr = Array.isArray(coloredResp)
-          ? coloredResp
-          : (Array.isArray(coloredResp.data) ? coloredResp.data : []);
-
-        document.querySelectorAll("input[name='cb']").forEach(cb => {
-          if (coloredArr.includes(cb.value)) {
-            cb.checked = true;
-            cb.parentElement.classList.add("red");
-          }
-        });
-
-      } catch (err) {
-        console.error(err);
-        resultDiv.textContent = "❌ Lỗi: " + err.message;
-      } finally {
-        loading.style.display = "none";
-      }
-    }
-
-    async function applyHighlight(soVu) {
-      const checked = Array.from(document.querySelectorAll("input[name='cb']:checked")).map(x => x.value);
-      if (!checked.length) return alert("Chưa chọn tên nào để bôi đỏ!");
-      const payload = { action: "applyHighlight", soVu, selectedNames: checked, user: "Khách WebApp" };
-
-      try {
-        const res = await fetch(URL, { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "text/plain" } });
-        const data = await res.json();
-        alert("✅ " + (data.message || "Đã bôi đỏ thành công!"));
-      } catch (err) {
-        alert("❌ Lỗi: " + err.message);
-      }
-    }
-
-    async function clearHighlight(soVu) {
-      const payload = { action: "clearHighlight", soVu, user: "Khách WebApp" };
-      try {
-        const res = await fetch(URL, { method: "POST", body: JSON.stringify(payload), headers: { "Content-Type": "text/plain" } });
-        const data = await res.json();
-        alert("🧹 " + (data.message || "Đã bỏ bôi đỏ."));
-      } catch (err) {
-        alert("❌ Lỗi: " + err.message);
-      }
-    }
-  </script>
+async function boBoido() {
+  const soVu = document.getElementById("soVu").value.trim();
+  if (!soVu) return alert("Nhập số vụ!");
+  try {
+    const res = await fetch(URL, {
+      method: "POST",
+      body: JSON.stringify({ action:"clearHighlight", soVu })
+    }).then(r=>r.json());
+    document.getElementById("log").innerText = res.message || "Đã bỏ bôi đỏ.";
+    traCuu(); // cập nhật lại
+  } catch (e) { alert("Lỗi bỏ bôi đỏ: " + e.message); }
+}
+</script>
 </body>
 </html>
