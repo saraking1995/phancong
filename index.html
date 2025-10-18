@@ -26,12 +26,12 @@
     <input id="soVu" type="text" placeholder="Nhập số vụ…"/>
     <button onclick="traCuu()">🔍 Tra cứu</button>
     <button onclick="boiDo()">🟥 Hoàn thành</button>
-    <button onclick="boBoido()">🧹 Xoá</button>
+    <button onclick="boBoido()">🧹 Xóa</button>
   </div>
 
   <div id="card">
     <div><b>Số vụ:</b> <span id="showSoVu">–</span></div>
-    <div style="margin-top:6px;"><b>Phân công công việc cụ thể:</b>
+    <div style="margin-top:6px;"><b>Nội dung (màu thật):</b>
       <div id="noiDung">–</div>
     </div>
     <div id="names"></div>
@@ -41,41 +41,48 @@
   <div id="log"></div>
 
 <script>
-/** 🔗 Thay bằng URL /exec mới nhất của bạn (bạn đã đúng) */
-const URL = "https://script.google.com/macros/s/AKfycbyyAzuSzZUCB7fDQ_0EpIvG-V0IZj2a2ph9fws3g_zj01hEQhQwbHkJjzJ0Bq2ZiC0q/exec";
+/** 🔗 Thay bằng URL /exec mới nhất của bạn */
+const URL = "https://script.google.com/macros/s/AKfycbzJyJXoS21jGTI0hyLmOVr7GNfskFp--QwJhddkl2oAipRC-go44t2JyRx0Ea664ngU/exec";
 
 /** Danh sách tên chuẩn để dò trong nội dung */
 const CANBO = ["Nghĩa","Thủy","Đạt","Trường","Thống","Kỳ Anh","Thao","Tiến","Huy","Nam","PNam","Tình","Quân","Lượng","Phúc","Khang","Dũng","Nhật","Sáng","Khoa","Bình","Tuấn","Hải","Tuân","Trung","Duy"];
 
-/** ── Helpers JSON ── */
+/** ── Helpers robust cho JSON ───────────────────────────────────────── */
 async function getJSON(url) {
   const r = await fetch(url);
   const j = await r.json();
+  // nếu backend trả dạng [ {...} ]
+  if (Array.isArray(j)) return j[0] || {};
+  return j;
+}
+async function postJSON(url, payload) {
+  const r = await fetch(url, { method: "POST", body: JSON.stringify(payload) });
+  const j = await r.json();
   return Array.isArray(j) ? (j[0] || {}) : j;
 }
-/* ✅ THÊM: build query string cho GET */
-function qs(params) {
-  return Object.entries(params)
-    .map(([k,v]) => k + "=" + encodeURIComponent(typeof v === "string" ? v : JSON.stringify(v)))
-    .join("&");
+/** Trích mảng từ {data:[…]} hoặc trả [] */
+function pickArray(resp) {
+  if (Array.isArray(resp)) return resp;
+  if (resp && Array.isArray(resp.data)) return resp.data;
+  return [];
 }
 
-/* ❌ XOÁ: postJSON(...) cũ – KHÔNG dùng POST nữa */
-
-/** ── State ── */
+/** ── State ─────────────────────────────────────────────────────────── */
 let currentSoVu = "";
 let lastRawText = "";
 
-/** ── Render checkbox ── */
+/** ── Render checkbox chỉ tên có trong raw ─────────────────────────── */
 function renderCheckboxes(foundNames, coloredNames) {
   const wrap = document.getElementById("names");
   const note = document.getElementById("note");
   wrap.innerHTML = "";
   note.textContent = "";
+
   if (!foundNames.length) {
     note.textContent = "⚠️ Không phát hiện tên cán bộ nào trong nội dung.";
     return;
   }
+
   foundNames.forEach(name => {
     const checked = coloredNames.includes(name);
     const label = document.createElement("label");
@@ -85,7 +92,7 @@ function renderCheckboxes(foundNames, coloredNames) {
   });
 }
 
-/** ── Tra cứu ── */
+/** ── Tra cứu ───────────────────────────────────────────────────────── */
 async function traCuu() {
   const soVu = document.getElementById("soVu").value.trim();
   if (!soVu) return alert("Nhập số vụ!");
@@ -97,6 +104,7 @@ async function traCuu() {
   document.getElementById("log").textContent = "";
 
   try {
+    // 1) Lấy text gốc để LỌC tên
     const info = await getJSON(`${URL}?action=getPhanCongBySoVu&soVu=${encodeURIComponent(soVu)}`);
     if (!info || info.found === false) {
       document.getElementById("noiDung").textContent = "(Không tìm thấy dữ liệu)";
@@ -104,14 +112,19 @@ async function traCuu() {
     }
     lastRawText = (info.raw || "").toString();
 
+    // 2) Lấy HTML RichText có màu thật
     const rich = await getJSON(`${URL}?action=getRichHTML&soVu=${encodeURIComponent(soVu)}`);
     document.getElementById("noiDung").innerHTML = rich && rich.html ? rich.html : "(Không có dữ liệu)";
 
+    // 3) Lấy danh sách đã bôi đỏ
     const coloredResp = await getJSON(`${URL}?action=getColored&soVu=${encodeURIComponent(soVu)}`);
-    const coloredArr = Array.isArray(coloredResp.data) ? coloredResp.data : (Array.isArray(coloredResp) ? coloredResp : []);
+    const coloredArr = pickArray(coloredResp);
 
+    // 4) Lọc danh sách tên chỉ những tên có xuất hiện trong raw
     const rawLower = lastRawText.toLowerCase();
     const foundNames = CANBO.filter(n => rawLower.includes(n.toLowerCase()));
+
+    // 5) Render checkbox
     renderCheckboxes(foundNames, coloredArr);
 
     document.getElementById("log").textContent = "Đã tải xong.";
@@ -121,22 +134,16 @@ async function traCuu() {
   }
 }
 
-/** ── ✅ Gọi GET để bôi đỏ / xoá, tránh CORS/preflight ── */
+/** ── Gửi bôi đỏ / bỏ bôi đỏ ───────────────────────────────────────── */
 async function boiDo() {
   if (!currentSoVu) return alert("Hãy tra cứu trước!");
   const selected = [...document.querySelectorAll("input[name='cb']:checked")].map(x => x.value);
   if (!selected.length) return alert("Chưa chọn tên để bôi đỏ!");
 
   try {
-    const url = `${URL}?` + qs({
-      action: "applyHighlight",
-      soVu: currentSoVu,
-      selectedNames: selected,
-      user: "WebApp"
-    });
-    const res = await getJSON(url);
+    const res = await postJSON(URL, { action: "applyHighlight", soVu: currentSoVu, selectedNames: selected, user: "WebApp" });
     document.getElementById("log").textContent = res.message || "Đã bôi đỏ.";
-    await traCuu();
+    await traCuu(); // refresh preview + checkbox
   } catch (e) {
     document.getElementById("log").textContent = "Lỗi bôi đỏ: " + e.message;
   }
@@ -144,16 +151,10 @@ async function boiDo() {
 
 async function boBoido() {
   if (!currentSoVu) return alert("Hãy tra cứu trước!");
-
   try {
-    const url = `${URL}?` + qs({
-      action: "clearHighlight",
-      soVu: currentSoVu,
-      user: "WebApp"
-    });
-    const res = await getJSON(url);
+    const res = await postJSON(URL, { action: "clearHighlight", soVu: currentSoVu, user: "WebApp" });
     document.getElementById("log").textContent = res.message || "Đã bỏ bôi đỏ.";
-    await traCuu();
+    await traCuu(); // refresh preview + checkbox
   } catch (e) {
     document.getElementById("log").textContent = "Lỗi bỏ bôi đỏ: " + e.message;
   }
